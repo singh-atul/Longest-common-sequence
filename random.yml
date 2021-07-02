@@ -51,7 +51,8 @@ spec:
       spec:
         template:
           metadata:
-            annotations: sidecar.istio.io/inject: "false"
+            annotations: 
+              sidecar.istio.io/inject: "false"
           spec:
             volumes:
               - name: training
