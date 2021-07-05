@@ -1,0 +1,108 @@
+apiVersion: "kubeflow.org/v1beta1"
+kind: Experiment
+metadata:
+  namespace: kubeflow-user-example-com
+  name: katib-game-gpu
+spec:
+  objective:
+    type: maximize
+    goal: 0.99
+    objectiveMetricName: accuracy
+  algorithm:
+    algorithmName: random
+  parallelTrialCount: 3
+  maxTrialCount: 7
+  maxFailedTrialCount: 3
+  parameters:
+    - name: lr
+      parameterType: double
+      feasibleSpace:
+        min: "0.01"
+        max: "0.06"
+    - name: optimizer
+      parameterType: categorical
+      feasibleSpace:
+        list:
+          - sgd
+          - adam
+          - ftrl
+  trialTemplate:
+    primaryContainerName: tensorflow
+    trialParameters:
+      - name: learningRate
+        description: Learning rate for the training model
+        reference: lr
+      - name: optimizer
+        description: Training model optimizer (sdg, adam or ftrl)
+        reference: optimizer
+    trialSpec:
+      apiVersion: "kubeflow.org/v1"
+      kind: TFJob
+      spec:
+        tfReplicaSpecs:
+            Chief:
+              replicas: 1
+              restartPolicy: Never
+              template:
+                metadata:
+                  annotations:
+                    sidecar.istio.io/inject: "false"
+                spec:
+                  volumes:
+                    - name: training
+                      persistentVolumeClaim: 
+                        claimName: hyperparameter-tuning-example-5c4dk-data-volume 
+                  containers:
+                    - name: tensorflow
+                      image: docker.io/729578/train:latest
+                      #image: tcpazu0026seaacrmlopsdev.azurecr.io/hptraining
+                      command:
+                        - "python3"
+                        - "/pipelines/component/src/train.py"
+                        - "--data-path=/mount/"
+                        - "--batch-size=64"
+                        - "--loss=crossentropy"
+                        - "--metrics=accuracy"
+                        - "--epochs=5"
+                        - "--learning-rate=${trialParameters.learningRate}"
+                        - "--optimizer=${trialParameters.optimizer}"
+                      resources:
+                        limits:
+                          cpu: 1
+                      volumeMounts:
+                      - mountPath: /mount/  
+                        name: training
+            Worker:
+              replicas: 1
+              restartPolicy: Never
+              template:
+                metadata:
+                  annotations:
+                    sidecar.istio.io/inject: "false"
+                spec:
+                  volumes:
+                    - name: training
+                      persistentVolumeClaim: 
+                        claimName: hyperparameter-tuning-example-5c4dk-data-volume 
+                  containers:
+                    - name: tensorflow
+                      image: docker.io/729578/train:latest
+                      #image: tcpazu0026seaacrmlopsdev.azurecr.io/hptraining
+                      command:
+                        - "python3"
+                        - "/pipelines/component/src/train.py"
+                        - "--data-path=/mount/"
+                        - "--batch-size=64"
+                        - "--loss=crossentropy"
+                        - "--metrics=accuracy"
+                        - "--epochs=5"
+                        - "--learning-rate=${trialParameters.learningRate}"
+                        - "--optimizer=${trialParameters.optimizer}"
+                      resources:
+                        limits:
+                          nvidia.com/gpu: 1
+                      volumeMounts:
+                      - mountPath: /mount/  
+                        name: training
+            
+  
