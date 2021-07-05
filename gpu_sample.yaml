@@ -2,7 +2,7 @@ apiVersion: "kubeflow.org/v1beta1"
 kind: Experiment
 metadata:
   namespace: kubeflow-user-example-com
-  name: katib-game-gpu
+  name: katib-game-gpu1
 spec:
   objective:
     type: maximize
